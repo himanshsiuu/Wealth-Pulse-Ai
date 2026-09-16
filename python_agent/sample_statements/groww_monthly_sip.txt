@@ -1,0 +1,88 @@
+================================================================================
+GROWW MONTHLY MUTUAL FUND & SIP VALUATION STATEMENT
+Statement Period: 01-Aug-2026 to 31-Aug-2026
+User: Priyanshu Dubey | Client ID: GRW983421 | Primary Bank: HDFC Bank A/c **4921
+================================================================================
+
+PORTFOLIO VALUATION SUMMARY (As of 31-Aug-2026)
+Total Invested Amount: ₹ 8,50,000.00
+Current Market Value:  ₹ 11,42,850.00
+Overall Unrealized Gain: +₹ 2,92,850.00 (+34.45%)
+Previous Month Value (31-Jul-2026): ₹ 11,04,200.00
+Month-over-Month (MoM) Net Change: +₹ 38,650.00 (+3.50%)
+Active Monthly SIPs: 5 Funds | Total Monthly SIP Outflow: ₹ 35,000.00
+
+--------------------------------------------------------------------------------
+HOLDINGS & FUND PERFORMANCE BREAKDOWN
+--------------------------------------------------------------------------------
+
+1. Fund Name: Motilal Oswal Midcap Fund - Direct Plan - Growth
+   Folio No: 9104829102/0
+   Category: Mid Cap Fund
+   AMC: Motilal Oswal Asset Management
+   Active SIP: ₹ 10,000 / month (Next deduction: 05-Sep-2026)
+   Units Held: 1,842.610
+   Avg Purchase NAV: ₹ 86.83
+   Invested Value: ₹ 1,60,000.00
+   Current NAV (31-Aug): ₹ 124.50
+   Previous NAV (31-Jul): ₹ 118.90
+   Current Market Value: ₹ 2,29,404.95
+   MoM Fund Growth: +4.71% (+₹ 10,318.61)
+   Fund XIRR: 24.12%
+
+2. Fund Name: Tata Digital India Fund - Direct Plan - Growth
+   Folio No: 7820194821/0
+   Category: Sectoral / Thematic - Digital & Technology
+   AMC: Tata Mutual Fund
+   Active SIP: ₹ 8,000 / month (Next deduction: 10-Sep-2026)
+   Units Held: 4,112.450
+   Avg Purchase NAV: ₹ 38.90
+   Invested Value: ₹ 1,60,000.00
+   Current NAV (31-Aug): ₹ 56.40
+   Previous NAV (31-Jul): ₹ 53.60
+   Current Market Value: ₹ 2,31,942.18
+   MoM Fund Growth: +5.22% (+₹ 11,514.86)
+   Fund XIRR: 21.80%
+
+3. Fund Name: Quant Small Cap Fund - Direct Plan - Growth
+   Folio No: 6601928341/0
+   Category: Small Cap Fund
+   AMC: Quant Mutual Fund
+   Active SIP: ₹ 7,000 / month (Next deduction: 12-Sep-2026)
+   Units Held: 894.210
+   Avg Purchase NAV: ₹ 178.93
+   Invested Value: ₹ 1,60,000.00
+   Current NAV (31-Aug): ₹ 284.15
+   Previous NAV (31-Jul): ₹ 273.40
+   Current Market Value: ₹ 2,54,090.77
+   MoM Fund Growth: +3.93% (+₹ 9,612.76)
+   Fund XIRR: 28.65%
+
+4. Fund Name: Parag Parikh Flexi Cap Fund - Direct Plan - Growth
+   Folio No: 4409182371/0
+   Category: Flexi Cap Fund
+   AMC: PPFAS Asset Management
+   Active SIP: ₹ 6,000 / month (Next deduction: 15-Sep-2026)
+   Units Held: 3,240.100
+   Avg Purchase NAV: ₹ 61.73
+   Invested Value: ₹ 2,00,000.00
+   Current NAV (31-Aug): ₹ 87.65
+   Previous NAV (31-Jul): ₹ 85.90
+   Current Market Value: ₹ 2,84,000.77
+   MoM Fund Growth: +2.04% (+₹ 5,670.18)
+   Fund XIRR: 18.40%
+
+5. Fund Name: HDFC Balanced Advantage Fund - Direct Plan - Growth
+   Folio No: 1209384719/0
+   Category: Dynamic Asset Allocation / Hybrid
+   AMC: HDFC Mutual Fund
+   Active SIP: ₹ 4,000 / month (Next deduction: 20-Sep-2026)
+   Units Held: 279.400
+   Avg Purchase NAV: ₹ 393.70
+   Invested Value: ₹ 1,10,000.00
+   Current NAV (31-Aug): ₹ 513.30
+   Previous NAV (31-Jul): ₹ 507.80
+   Current Market Value: ₹ 1,43,416.02
+   MoM Fund Growth: +1.08% (+₹ 1,536.70)
+   Fund XIRR: 13.90%
+================================================================================

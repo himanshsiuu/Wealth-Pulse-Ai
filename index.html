@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WealthPulse AI — Autonomous Portfolio & SIP Intelligence Agent</title>
+  <meta name="description" content="AI-powered wealth assistant tracking SIP compounding, mutual fund performance, and month-over-month growth across Groww, Paytm Money, Angel One, and CAS statements.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+
+  <style>
+    .app-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-emerald);
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.875rem;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: var(--transition);
+      z-index: 2000;
+      pointer-events: none;
+    }
+    .app-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .app-toast.success { border-color: var(--accent-mint); color: #a7f3d0; }
+    .app-toast.error { border-color: var(--accent-rose); color: #fecdd3; }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(16, 185, 129, 0.3);
+      border-top-color: var(--accent-mint);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="brand-wrapper">
+      <div class="brand-logo-icon">💎</div>
+      <div class="brand-text">
+        <h1>WealthPulse AI <span class="badge badge-success" id="serverStatusBadge">● Port 8083</span></h1>
+        <div class="brand-tagline">Autonomous Financial Intelligence & SIP Performance Agent</div>
+      </div>
+    </div>
+
+    <!-- Brokerage Switcher Pills -->
+    <div class="brokerage-pill-selector">
+      <button class="broker-pill active" data-broker="ALL">All Brokerages</button>
+      <button class="broker-pill" data-broker="GROWW">Groww</button>
+      <button class="broker-pill" data-broker="PAYTM">Paytm Money</button>
+      <button class="broker-pill" data-broker="ANGEL">Angel One</button>
+    </div>
+
+    <!-- Actions -->
+    <div class="nav-actions">
+      <button class="btn btn-outline" id="btnOpenPasteModal">📋 Ingest Text</button>
+      <button class="btn btn-whatsapp" id="btnOpenWhatsAppModal">📱 WhatsApp Dispatch</button>
+      <button class="btn btn-icon" id="btnExportMarkdown" title="Export Markdown Report">📥</button>
+      <button class="btn btn-icon" id="btnPrintPdf" title="Print / PDF View">🖨️</button>
+      <button class="btn btn-icon" id="btnOpenKeyModal" title="Gemini API Key Settings">🔑</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-container">
+
+    <!-- Statement Metadata Bar -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+      <div style="font-size:0.875rem; color:var(--text-muted);" id="statementMetaInfo">
+        Loading statement data...
+      </div>
+      <div style="display:flex; gap:8px;">
+        <span class="badge badge-cyan" id="aiSourceBadge">⚡ Local Synthesis Engine</span>
+        <span class="badge badge-purple" id="apiKeyBadge">🔑 Gemini 3.7 Ready</span>
+      </div>
+    </div>
+
+    <!-- KPI Metric Cards Grid -->
+    <section class="kpi-grid">
+      <!-- Total Valuation -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Total Portfolio Value</span>
+          <div class="kpi-icon">💰</div>
+        </div>
+        <div class="kpi-value" id="kpiTotalValuation">₹ 0.00</div>
+        <div class="kpi-footer">
+          <span class="delta-badge positive" id="kpiMoMBadge">⚡ +0.00% MoM</span>
+          <span class="text-muted" id="kpiMoMDelta">+₹ 0.00</span>
+        </div>
+      </div>
+
+      <!-- Invested & Unrealized Gain -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Invested & Returns</span>
+          <div class="kpi-icon">📈</div>
+        </div>
+        <div class="kpi-value text-mint" id="kpiGain">+₹ 0.00</div>
+        <div class="kpi-footer">
+          <span class="text-muted">Cost: <strong id="kpiInvested" style="color:#fff;">₹ 0</strong></span>
+          <span class="text-mint font-bold" id="kpiGainPct">(+0.00%)</span>
+        </div>
+      </div>
+
+      <!-- Portfolio XIRR -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Portfolio XIRR</span>
+          <div class="kpi-icon">🏆</div>
+        </div>
+        <div class="kpi-value text-gold" id="kpiXirr">0.00%</div>
+        <div class="kpi-footer">
+          <span class="badge badge-warning">Annualized Alpha</span>
+          <span class="text-muted">vs Nifty 50 (14.2%)</span>
+        </div>
+      </div>
+
+      <!-- Monthly SIP Outflow -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Monthly SIP Outflow</span>
+          <div class="kpi-icon">🔄</div>
+        </div>
+        <div class="kpi-value text-cyan" id="kpiSip">₹ 0.00</div>
+        <div class="kpi-footer">
+          <span class="badge badge-cyan" id="kpiSipCount">0 Active SIPs</span>
+          <span class="text-muted">Disciplined Inflow</span>
+        </div>
+      </div>
+
+      <!-- Health Score -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Portfolio Health</span>
+          <div class="kpi-icon">🛡️</div>
+        </div>
+        <div class="kpi-value text-emerald" id="kpiHealthScore">94/100</div>
+        <div class="kpi-footer">
+          <span class="badge badge-success" id="kpiHealthStatus">Strong Momentum</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-navigation">
+      <button class="tab-btn active" data-tab="tabOverview">🌟 Overview & AI Briefing</button>
+      <button class="tab-btn" data-tab="tabCharts">📈 Visual Analytics & Growth</button>
+      <button class="tab-btn" data-tab="tabMatrix">📑 Fund Performance Matrix</button>
+      <button class="tab-btn" data-tab="tabIngest">📥 Statement Ingestion Hub</button>
+      <button class="tab-btn" data-tab="tabCopilot">🤖 AI Wealth Copilot</button>
+    </nav>
+
+    <!-- TAB 1: Overview & AI Briefing -->
+    <div class="tab-content active" id="tabOverview">
+      <div class="analytics-grid">
+        <!-- AI Executive Briefing -->
+        <div class="ai-briefing-box">
+          <div class="ai-briefing-header">
+            <h2 class="card-box-title">🤖 AI Executive Portfolio Briefing</h2>
+            <button class="btn btn-outline" id="btnRefreshBriefing" style="padding:5px 12px; font-size:0.8rem;">🔄 Re-analyze</button>
+          </div>
+          <div class="ai-briefing-content" id="aiBriefingText">
+            <div style="display:flex; align-items:center; gap:10px; color:var(--accent-mint);">
+              <div class="spinner"></div> Synthesizing portfolio health analysis...
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Ingestion & Presets Box -->
+        <div>
+          <div class="card-box">
+            <h3 class="card-box-title" style="font-size:1rem; margin-bottom:14px;">⚡ Load Multi-Brokerage Statements</h3>
+            <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">
+              Instantly test and verify parsing with real-world statement samples from top Indian brokerages:
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <button class="btn btn-outline" onclick="loadSample('cas')" style="justify-content:flex-start; text-align:left;">
+                <span style="font-size:1.2rem;">📑</span>
+                <div>
+                  <div style="font-weight:700;">CAMS / KFintech CAS</div>
+                  <div style="font-size:0.72rem; color:var(--text-muted);">Consolidated 11 Funds across 3 Brokerages</div>
+                </div>
+              </button>
+              <button class="btn btn-outline" onclick="loadSample('groww')" style="justify-content:flex-start; text-align:left;">
+                <span style="font-size:1.2rem;">🌱</span>
+                <div>
+                  <div style="font-weight:700;">Groww Monthly SIP Report</div>
+                  <div style="font-size:0.72rem; color:var(--text-muted);">5 Funds (Motilal Midcap, Tata Digital, Quant Small)</div>
+                </div>
+              </button>
+              <button class="btn btn-outline" onclick="loadSample('paytm')" style="justify-content:flex-start; text-align:left;">
+                <span style="font-size:1.2rem;">📱</span>
+                <div>
+                  <div style="font-weight:700;">Paytm Money Valuation Digest</div>
+                  <div style="font-size:0.72rem; color:var(--text-muted);">3 Funds (ICICI Tech, Nippon Small, UTI Nifty 50)</div>
+                </div>
+              </button>
+              <button class="btn btn-outline" onclick="loadSample('angel')" style="justify-content:flex-start; text-align:left;">
+                <span style="font-size:1.2rem;">👼</span>
+                <div>
+                  <div style="font-weight:700;">Angel One Holding Statement</div>
+                  <div style="font-size:0.72rem; color:var(--text-muted);">3 Funds (HDFC Mid-Cap, Mirae Large, SBI Hybrid)</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Visual Analytics & Charts -->
+    <div class="tab-content" id="tabCharts">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; margin-bottom:24px;">
+        <!-- MoM Growth Line -->
+        <div class="card-box">
+          <div class="card-box-header">
+            <h3 class="card-box-title">📈 MoM Portfolio Growth vs Invested Capital</h3>
+          </div>
+          <div style="height: 320px; position: relative;">
+            <canvas id="growthChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Asset Category Allocation Donut -->
+        <div class="card-box">
+          <div class="card-box-header">
+            <h3 class="card-box-title">🍩 Category Allocation (Midcap, Tech, Smallcap)</h3>
+          </div>
+          <div style="height: 320px; position: relative;">
+            <canvas id="allocationChartCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+        <!-- Fund Performance Bar Chart -->
+        <div class="card-box">
+          <div class="card-box-header">
+            <h3 class="card-box-title">🚀 Fund Month-over-Month Gain Ranking (%)</h3>
+          </div>
+          <div style="height: 300px; position: relative;">
+            <canvas id="performanceChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- SIP vs Benchmark Line -->
+        <div class="card-box">
+          <div class="card-box-header">
+            <h3 class="card-box-title">⚖️ Portfolio MoM Return vs Nifty 50 Benchmark</h3>
+          </div>
+          <div style="height: 300px; position: relative;">
+            <canvas id="benchmarkChartCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Fund Performance Matrix -->
+    <div class="tab-content" id="tabMatrix">
+      <div class="card-box">
+        <div class="card-box-header">
+          <h2 class="card-box-title">📑 Detailed Fund Ledger & MoM Deltas</h2>
+          <span class="badge badge-success">Live Valuation Matrix</span>
+        </div>
+        <div class="table-responsive">
+          <table class="financial-table">
+            <thead>
+              <tr>
+                <th>Scheme Name & AMC</th>
+                <th>Category</th>
+                <th>Current Value</th>
+                <th>Invested</th>
+                <th>MoM Gain (%)</th>
+                <th>XIRR</th>
+                <th>Active Monthly SIP</th>
+              </tr>
+            </thead>
+            <tbody id="fundTableBody">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Statement Ingestion Hub -->
+    <div class="tab-content" id="tabIngest">
+      <div class="card-box">
+        <div class="card-box-header">
+          <h2 class="card-box-title">📥 Ingest Brokerage Statements & Trade Notes</h2>
+        </div>
+
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+          Upload PDF valuation reports, trade contract notes, or monthly SIP digests from Groww, Paytm Money, Angel One, Zerodha, or CAMS/KFintech CAS.
+        </p>
+
+        <!-- Dropzone -->
+        <div class="dropzone-container" id="statementDropzone">
+          <div class="dropzone-icon">📁</div>
+          <h3 style="font-size:1.15rem; color:#ffffff; margin-bottom:6px;">Drag & Drop Statement File Here</h3>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:14px;">Supports .txt, .pdf, .json, .csv, and raw email statements</p>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('statementFileInput').click();">
+            📂 Browse Local File
+          </button>
+          <input type="file" id="statementFileInput" style="display:none;" accept=".txt,.json,.csv,.pdf">
+        </div>
+
+        <div style="margin-top:30px; text-align:center;">
+          <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">— OR PASTE UNSTRUCTURED EMAIL / VALUATION TEXT —</div>
+          <button class="btn btn-outline" onclick="openModal('pasteModal')">📋 Open Raw Text Paste Box</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: AI Wealth Copilot -->
+    <div class="tab-content" id="tabCopilot">
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-bubble assistant">
+            👋 <strong>Welcome to WealthPulse AI Copilot!</strong><br>
+            I have analyzed your portfolio valuation, active SIPs, and fund performance. Ask me anything about your returns, sector concentrations (Tech, Midcap, Smallcap), tax harvesting, or compounding milestones!
+          </div>
+        </div>
+
+        <!-- Prompt Pills -->
+        <div class="prompt-pills-row">
+          <button class="prompt-pill">📱 How did my Tata Digital & Tech funds perform?</button>
+          <button class="prompt-pill">🚀 Compare Midcap vs Smallcap returns</button>
+          <button class="prompt-pill">🔄 Calculate my monthly SIP schedule</button>
+          <button class="prompt-pill">⚖️ How can I harvest ₹1.25L LTCG tax-free?</button>
+          <button class="prompt-pill">🎯 Suggest portfolio rebalancing</button>
+        </div>
+
+        <!-- Input Bar -->
+        <div class="chat-input-row">
+          <input type="text" id="chatInputField" class="chat-input-field" placeholder="Ask WealthPulse Copilot about your investments, funds, or rebalancing...">
+          <button class="btn btn-primary" id="chatSendBtn">Send ➔</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL 1: Paste Statement Text -->
+  <div class="modal-overlay" id="pasteModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">📋 Paste Unstructured Statement / Email</h3>
+        <button class="modal-close-btn" onclick="closeModal('pasteModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Paste text from Groww, Paytm Money, Angel One, or CAS email:</label>
+        <textarea id="pasteStatementText" class="form-control" placeholder="Paste statement contents, monthly summary email, or trade notes here..."></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn-outline" onclick="closeModal('pasteModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="parsePastedStatement()">🚀 Parse & Ingest Statement</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Google Gemini API Key Settings -->
+  <div class="modal-overlay" id="apiKeyModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">🔑 Google Gemini API Settings</h3>
+        <button class="modal-close-btn" onclick="closeModal('apiKeyModal')">&times;</button>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+        WealthPulse AI works out-of-the-box with a built-in deterministic offline synthesis engine. To enable live <strong>Google Gemini 3.7 Flash</strong> reasoning, enter your API key below:
+      </p>
+      <div class="form-group">
+        <label class="form-label">Google Gemini API Key:</label>
+        <input type="password" id="apiKeyInput" class="form-control" placeholder="AIzaSy...">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn-outline" onclick="closeModal('apiKeyModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveApiKeyFromModal()">Save & Apply Key</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: WhatsApp Dispatch & Sharing -->
+  <div class="modal-overlay" id="whatsAppModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">📱 1-Click WhatsApp Portfolio Digest</h3>
+        <button class="modal-close-btn" onclick="closeModal('whatsAppModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Formatted Executive Briefing Preview:</label>
+        <textarea id="whatsAppMessagePreview" class="form-control" readonly style="min-height:160px;"></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn-outline" onclick="closeModal('whatsAppModal')">Close</button>
+        <a id="btnSendWhatsAppDirect" class="btn btn-whatsapp" target="_blank" rel="noopener noreferrer">
+          📲 Open in WhatsApp Web / App
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="app-toast" id="appToast">Notification message</div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/analytics.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/agent.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

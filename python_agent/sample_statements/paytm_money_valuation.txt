@@ -1,0 +1,54 @@
+From: alerts@paytmmoney.com
+Subject: Your Mutual Fund Monthly Portfolio Statement - August 2026
+Date: 01 September 2026 at 09:30:15 IST
+To: priyanshu.dubey@example.com
+
+Dear Priyanshu Dubey,
+
+Here is your consolidated investment summary on Paytm Money for the month ending 31 August 2026.
+
+PORTFOLIO SNAPSHOT (Paytm Money Mutual Funds)
+--------------------------------------------------------------------------------
+Total Portfolio Value : ₹ 5,84,320.00
+Total Amount Invested : ₹ 4,20,000.00
+Unrealized Gain       : +₹ 1,64,320.00 (+39.12%)
+Last Month Valuation  : ₹ 5,61,900.00
+Month-on-Month Growth : +₹ 22,420.00 (+3.99%)
+Active Monthly SIPs   : 3 Funds (Total ₹ 20,000 / month)
+
+SCHEME DETAILS & PERFORMANCE
+--------------------------------------------------------------------------------
+
+Scheme 1: ICICI Prudential Technology Fund - Direct Growth
+Category: Sectoral - Technology
+Folio Number: PM-88192301
+Active SIP: ₹ 8,000 / month (Auto-debit on 3rd of every month)
+Units: 1,488.200
+Current NAV (31-Aug-2026): ₹ 210.45 | Previous NAV (31-Jul-2026): ₹ 199.80
+Invested Amount: ₹ 1,80,000.00
+Current Value: ₹ 3,13,191.69
+MoM Gain: +5.33% (+₹ 15,849.33)
+CAGR / XIRR: 22.40%
+
+Scheme 2: Nippon India Small Cap Fund - Direct Growth
+Category: Small Cap Fund
+Folio Number: PM-55291044
+Active SIP: ₹ 7,000 / month (Auto-debit on 8th of every month)
+Units: 1,120.400
+Current NAV (31-Aug-2026): ₹ 162.30 | Previous NAV (31-Jul-2026): ₹ 156.90
+Invested Amount: ₹ 1,40,000.00
+Current Value: ₹ 1,81,840.92
+MoM Gain: +3.44% (+₹ 6,050.16)
+CAGR / XIRR: 26.90%
+
+Scheme 3: UTI Nifty 50 Index Fund - Direct Growth
+Category: Large Cap / Index Fund
+Folio Number: PM-33019284
+Active SIP: ₹ 5,000 / month (Auto-debit on 18th of every month)
+Units: 498.500
+Current NAV (31-Aug-2026): ₹ 179.11 | Previous NAV (31-Jul-2026): ₹ 176.60
+Invested Amount: ₹ 1,00,000.00
+Current Value: ₹ 89,286.34
+MoM Gain: +1.42% (+₹ 1,251.24)
+CAGR / XIRR: 15.20%
+--------------------------------------------------------------------------------

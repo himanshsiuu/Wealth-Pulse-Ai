@@ -1,0 +1,20 @@
+ANGEL ONE LIMITED
+Mutual Fund Holding & Performance Report
+Client Code: AG748291 | Client Name: Priyanshu Dubey | Date: 31-Aug-2026
+
+PORTFOLIO OVERVIEW
+Total MF Valuation: ₹ 4,28,900.00
+Cost of Acquisition: ₹ 3,10,000.00
+Unrealized Profit/Loss: +₹ 1,18,900.00 (+38.35%)
+July 2026 Closing Value: ₹ 4,14,500.00
+MoM Growth: +₹ 14,400.00 (+3.47%)
+Monthly Active SIP Commitment: ₹ 15,000.00
+
+SCHEME WISE VALUATION REPORT
+------------------------------------------------------------------------------------------------------------------------
+Scheme Name                             Category           Folio       Units     Avg Cost  Current NAV  Invested     Cur Value    MoM Chg (%)
+------------------------------------------------------------------------------------------------------------------------
+HDFC Mid-Cap Opportunities Fund - Reg   Mid Cap            AO-991823   980.50    122.38    174.60       1,20,000.00  1,71,195.30  +4.86%
+Mirae Asset Large Cap Fund - Direct     Large Cap          AO-441829   1,120.80  89.22     118.40       1,00,000.00  1,32,702.72  +1.85%
+SBI Equity Hybrid Fund - Growth         Aggressive Hybrid  AO-110294   420.20    214.18    297.50       90,000.00    1,25,009.50  +1.62%
+------------------------------------------------------------------------------------------------------------------------
