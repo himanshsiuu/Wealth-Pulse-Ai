@@ -1,10 +1,172 @@
 /**
- * WealthPulse AI — Main App Coordinator
+ * WealthPulse AI — Main App & Real-Time Coordinator
+ * Handles Multi-Brokerage Ingestion, Real-Time Market Streaming, AMFI Live NAV Sync,
+ * and Streaming AI Copilot.
  */
 
 let activePortfolio = null;
 let currentBrokerageFilter = "ALL";
 let serverSamples = {};
+
+// Real-Time Streaming State
+const WealthLive = {
+  eventSource: null,
+  isStreaming: true,
+  lastIndices: {},
+
+  init() {
+    this.connectLiveStream();
+    this.initControls();
+  },
+
+  connectLiveStream() {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+
+    try {
+      this.eventSource = new EventSource("/api/live-stream");
+
+      this.eventSource.onopen = () => {
+        this.updateBeaconState(true);
+      };
+
+      this.eventSource.onmessage = (event) => {
+        if (!this.isStreaming) return;
+        try {
+          const data = JSON.parse(event.data);
+          this.handleLiveTick(data);
+        } catch (e) {
+          console.warn("Live stream tick parse error:", e);
+        }
+      };
+
+      this.eventSource.onerror = () => {
+        this.updateBeaconState(false);
+      };
+    } catch (e) {
+      console.warn("SSE connection error:", e);
+      this.updateBeaconState(false);
+    }
+  },
+
+  initControls() {
+    const toggleBtn = document.getElementById("btnLiveStreamToggle");
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        this.isStreaming = !this.isStreaming;
+        this.updateBeaconState(this.isStreaming);
+        showNotification(
+          this.isStreaming ? "🟢 Real-Time Market Stream Resumed" : "⏸️ Market Stream Paused",
+          this.isStreaming ? "success" : "info"
+        );
+      });
+    }
+
+    const syncBtn = document.getElementById("btnSyncLiveNavs");
+    if (syncBtn) {
+      syncBtn.addEventListener("click", () => syncLiveAMFINAVs());
+    }
+
+    const tableSyncBtn = document.getElementById("btnSyncTableNavs");
+    if (tableSyncBtn) {
+      tableSyncBtn.addEventListener("click", () => syncLiveAMFINAVs());
+    }
+  },
+
+  updateBeaconState(active) {
+    const beacon = document.getElementById("btnLiveStreamToggle");
+    const text = document.getElementById("liveStreamText");
+    if (!beacon || !text) return;
+
+    if (active && this.isStreaming) {
+      beacon.className = "live-pulse-beacon";
+      text.innerText = "LIVE STREAM";
+    } else {
+      beacon.className = "live-pulse-beacon paused";
+      text.innerText = this.isStreaming ? "CONNECTING..." : "STREAM PAUSED";
+    }
+  },
+
+  handleLiveTick(tickData) {
+    if (!tickData) return;
+
+    // 1. Update Market Ticker Tape
+    if (tickData.indices) {
+      for (const [key, item] of Object.entries(tickData.indices)) {
+        const valEl = document.getElementById(`tick_${key}`);
+        const chgEl = document.getElementById(`chg_${key}`);
+
+        if (valEl) {
+          const prevVal = this.lastIndices[key]?.value;
+          valEl.innerText = (key === 'GOLD_24K' || key === 'USD_INR') ? `₹ ${item.value.toLocaleString('en-IN')}` : item.value.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+          
+          if (prevVal !== undefined && prevVal !== item.value) {
+            valEl.classList.remove("flash-tick-up", "flash-tick-down");
+            void valEl.offsetWidth; // trigger reflow
+            valEl.classList.add(item.direction === "up" ? "flash-tick-up" : "flash-tick-down");
+          }
+        }
+
+        if (chgEl) {
+          chgEl.className = `ticker-change ${item.change_pct >= 0 ? 'up' : 'down'}`;
+          chgEl.innerText = `${item.change_pct >= 0 ? '+' : ''}${item.change_pct.toFixed(2)}%`;
+        }
+      }
+      this.lastIndices = tickData.indices;
+    }
+
+    const timeEl = document.getElementById("tickerLastUpdate");
+    if (timeEl && tickData.timestamp) {
+      timeEl.innerText = `Live: ${tickData.timestamp}`;
+    }
+
+    // 2. Micro-update active portfolio totals if present
+    if (tickData.portfolio_tick && activePortfolio) {
+      const pTick = tickData.portfolio_tick;
+      const kpiVal = document.getElementById("kpiTotalValuation");
+      if (kpiVal) {
+        kpiVal.innerText = WealthAnalytics.formatRupee(pTick.total_valuation);
+      }
+      const kpiMoM = document.getElementById("kpiMoMDelta");
+      if (kpiMoM) {
+        const momTotal = (activePortfolio.mom_gain_abs || 0) + (pTick.intraday_delta || 0);
+        kpiMoM.innerText = `+${WealthAnalytics.formatRupee(momTotal)}`;
+      }
+    }
+
+    // 3. Render Real-Time Alerts
+    if (tickData.alerts && tickData.alerts.length > 0) {
+      this.renderAlerts(tickData.alerts);
+    }
+  },
+
+  renderAlerts(alerts) {
+    const container = document.getElementById("liveAlertsContainer");
+    if (!container) return;
+
+    // Show latest alert
+    const alert = alerts[0];
+    const alertId = `alert_${alert.type}`;
+    if (document.getElementById(alertId)) return; // prevent duplicate
+
+    const banner = document.createElement("div");
+    banner.id = alertId;
+    banner.className = `live-alerts-banner ${alert.level === 'warning' ? 'warning' : ''}`;
+    banner.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.2rem;">${alert.type === 'tax' ? '⚖️' : '⚡'}</span>
+        <div>
+          <strong style="color:#ffffff;">${alert.title}</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${alert.message}</div>
+        </div>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+    `;
+    container.innerHTML = "";
+    container.appendChild(banner);
+  }
+};
 
 document.addEventListener("DOMContentLoaded", async () => {
   initEventListeners();
@@ -18,9 +180,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else if (serverSamples.cas) {
     loadSample("cas");
   } else {
-    // Fallback default sample
     loadSample("groww");
   }
+
+  // Initialize Real-Time Streaming
+  WealthLive.init();
 });
 
 function initEventListeners() {
@@ -176,6 +340,9 @@ async function loadSample(sampleKey) {
       const parsed = await WealthParser.parseStatement(text);
       setActivePortfolio(parsed);
       showNotification(`Loaded ${parsed.statement_type || sampleKey} successfully!`, "success");
+      
+      // Proactively sync live NAVs
+      syncLiveAMFINAVs(false);
     } catch (e) {
       showNotification(`Failed to parse sample: ${e.message}`, "error");
     }
@@ -189,8 +356,60 @@ function setActivePortfolio(portfolio) {
   document.querySelectorAll(".broker-pill").forEach(p => {
     p.classList.toggle("active", p.dataset.broker === "ALL");
   });
+
+  // Notify backend server of active portfolio for live ticks
+  fetch("/api/set-active-portfolio", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ portfolio })
+  }).catch(() => {});
+
   renderDashboard();
   generatePortfolioBriefing();
+}
+
+async function syncLiveAMFINAVs(showToast = true) {
+  if (!activePortfolio) return;
+
+  const badge = document.getElementById("liveSyncStatusBadge");
+  if (badge) {
+    badge.className = "badge badge-cyan";
+    badge.innerHTML = `<div class="spinner" style="display:inline-block; width:10px; height:10px; margin-right:4px;"></div> Syncing AMFI NAVs...`;
+  }
+
+  try {
+    const res = await fetch("/api/fetch-live-navs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ portfolio: activePortfolio })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.portfolio) {
+        activePortfolio = data.portfolio;
+        WealthStorage.savePortfolio(activePortfolio);
+        renderDashboard();
+
+        if (badge) {
+          badge.className = "badge badge-success";
+          badge.innerHTML = `● AMFI Live Synced (${data.synced_count || activePortfolio.funds.length} Funds)`;
+        }
+
+        if (showToast) {
+          showNotification(`⚡ Successfully synced ${data.synced_count || 0} mutual funds with live AMFI NAVs!`, "success");
+        }
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn("Live NAV fetch failed:", e);
+  }
+
+  if (badge) {
+    badge.className = "badge badge-warning";
+    badge.innerHTML = `● Cached NAVs`;
+  }
 }
 
 function filterPortfolioByBrokerage(portfolio, filter) {
@@ -255,7 +474,8 @@ function renderDashboard() {
   document.getElementById("kpiHealthStatus").innerText = p.health_status || "Strong Momentum";
 
   // Subtitle info
-  document.getElementById("statementMetaInfo").innerText = `${p.statement_type || 'Statement'} • As of ${p.as_of_date || 'August 2026'} • Investor: ${p.investor_name || 'Client'}`;
+  const syncedNotice = p.last_synced_at ? ` • Live AMFI Sync: ${p.last_synced_at}` : '';
+  document.getElementById("statementMetaInfo").innerText = `${p.statement_type || 'Statement'} • Period: ${p.as_of_date || 'August 2026'} • Investor: ${p.investor_name || 'Client'}${syncedNotice}`;
 
   // Render Fund Table
   renderFundTable(p.funds || []);
@@ -285,11 +505,16 @@ function renderFundTable(funds) {
 
     const momPct = f.mom_gain_pct || 0;
     const heatClass = momPct >= 4.5 ? "heat-high-green" : (momPct >= 2.0 ? "heat-med-green" : (momPct < 0 ? "heat-red" : ""));
+    const liveNavLabel = f.live_nav ? `₹ ${f.live_nav.toFixed(2)}` : 'Live';
+    const dayChangeBadge = f.day_change_pct ? `<span style="font-size:0.7rem; color:${f.day_change_pct >= 0 ? 'var(--accent-mint)' : 'var(--accent-rose)'}; margin-left:4px;">(${f.day_change_pct >= 0 ? '+' : ''}${f.day_change_pct}%)</span>` : '';
 
     tr.innerHTML = `
       <td>
         <div class="fund-cell-name">${f.name}</div>
-        <div class="fund-cell-sub">${f.amc || 'Mutual Fund AMC'} • Folio: ${f.folio || 'N/A'} • <span style="color:var(--accent-cyan);">${f.brokerage || 'Direct'}</span></div>
+        <div class="fund-cell-sub">
+          ${f.amc || 'Mutual Fund AMC'} • Folio: ${f.folio || 'N/A'} • <span style="color:var(--accent-cyan);">${f.brokerage || 'Direct'}</span>
+          ${f.is_live_synced ? `<span style="color:var(--accent-mint); font-size:0.7rem; margin-left:6px;">● NAV: ${liveNavLabel}${dayChangeBadge}</span>` : ''}
+        </div>
       </td>
       <td><span class="cat-tag ${catClass}">${f.category}</span></td>
       <td class="mono font-bold" style="color:#ffffff;">${WealthAnalytics.formatRupee(f.current_value)}</td>
@@ -343,15 +568,25 @@ async function sendChatMessage() {
   const chatContainer = document.getElementById("chatMessages");
   appendChatBubble("user", msg);
 
-  const loadingBubble = appendChatBubble("assistant", "Analyzing portfolio data...");
+  const bubble = appendChatBubble("assistant", '<span class="spinner" style="display:inline-block; width:12px; height:12px; margin-right:6px;"></span> Analyzing live portfolio data...');
   const apiKey = WealthStorage.getApiKey();
   const p = filterPortfolioByBrokerage(activePortfolio, currentBrokerageFilter);
 
   try {
-    const response = await WealthAgent.sendChatMessage(msg, p, apiKey);
-    loadingBubble.innerHTML = renderMarkdown(response);
+    let hasStarted = false;
+    await WealthAgent.streamChatMessage(msg, p, apiKey, (accumulatedText) => {
+      if (!hasStarted) {
+        hasStarted = true;
+      }
+      bubble.innerHTML = renderMarkdown(accumulatedText) + '<span class="chat-streaming-cursor"></span>';
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+
+    // Remove streaming cursor on finish
+    const cursor = bubble.querySelector(".chat-streaming-cursor");
+    if (cursor) cursor.remove();
   } catch (e) {
-    loadingBubble.innerHTML = `<span style="color:var(--accent-rose);">Error: ${e.message}</span>`;
+    bubble.innerHTML = `<span style="color:var(--accent-rose);">Error: ${e.message}</span>`;
   }
 
   chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -376,6 +611,7 @@ function handleFileUpload(file) {
       const parsed = await WealthParser.parseStatement(content, file.name);
       setActivePortfolio(parsed);
       showNotification(`Successfully ingested ${file.name}!`, "success");
+      syncLiveAMFINAVs(false);
     } catch (err) {
       showNotification(`Ingestion failed: ${err.message}`, "error");
     }
@@ -397,6 +633,7 @@ function parsePastedStatement() {
     setActivePortfolio(parsed);
     showNotification("Statement parsed successfully!", "success");
     textarea.value = "";
+    syncLiveAMFINAVs(false);
   }).catch(err => {
     showNotification(`Parsing error: ${err.message}`, "error");
   });

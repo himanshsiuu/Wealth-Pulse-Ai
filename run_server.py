@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-WealthPulse AI - Local Web & API Server (Port 8083)
+WealthPulse AI - Local Web & API Server (Port 8083) with Real-Time Streaming
 Serves the financial intelligence dashboard and provides high-performance API endpoints:
+- Real-Time Streaming: /api/live-stream (SSE), /api/chat-stream (SSE)
+- Live Market & NAVs: /api/market-indices, /api/fetch-live-navs
 - Ingestion & Parsing: /api/parse-statement, /api/samples
 - Analytics & AI: /api/analyze-portfolio, /api/chat
 - Configuration: /api/status, /api/save-key
@@ -15,6 +17,7 @@ import json
 import time
 import urllib.request
 import urllib.parse
+from typing import Optional
 
 PORT = 8083
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +30,20 @@ try:
     from statement_parser import parse_raw_statement, enrich_portfolio_data
 except ImportError:
     pass
+
+try:
+    from realtime_market import (
+        sync_portfolio_with_live_navs,
+        get_live_market_ticks,
+        fetch_live_mf_nav,
+        resolve_scheme_code,
+        BASE_INDICES
+    )
+except ImportError:
+    pass
+
+# Global storage for active live portfolio subscription
+LATEST_ACTIVE_PORTFOLIO = None
 
 
 def load_env_api_key():
@@ -120,6 +137,7 @@ class WealthPulseHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        global LATEST_ACTIVE_PORTFOLIO
         parsed = urllib.parse.urlparse(self.path)
         
         if parsed.path == "/api/status":
@@ -132,9 +150,39 @@ class WealthPulseHandler(http.server.SimpleHTTPRequestHandler):
                 "app": "WealthPulse AI",
                 "port": PORT,
                 "has_key": bool(key),
-                "key_preview": f"{key[:4]}...{key[-4:]}" if len(key) > 8 else ("Set" if key else "None")
+                "key_preview": f"{key[:4]}...{key[-4:]}" if len(key) > 8 else ("Set" if key else "None"),
+                "realtime_engine": "active"
             }).encode("utf-8"))
             return
+
+        if parsed.path == "/api/market-indices":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "success": True,
+                "indices": BASE_INDICES,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+            }).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/live-stream":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+
+            try:
+                while True:
+                    tick = get_live_market_ticks(LATEST_ACTIVE_PORTFOLIO)
+                    data_str = f"data: {json.dumps(tick)}\n\n"
+                    self.wfile.write(data_str.encode("utf-8"))
+                    self.wfile.flush()
+                    time.sleep(2.5) # Real-time tick frequency
+            except (BrokenPipeError, ConnectionResetError, Exception):
+                return
 
         if parsed.path == "/api/samples":
             samples = {}
@@ -166,6 +214,7 @@ class WealthPulseHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
+        global LATEST_ACTIVE_PORTFOLIO
         parsed = urllib.parse.urlparse(self.path)
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
@@ -187,12 +236,52 @@ class WealthPulseHandler(http.server.SimpleHTTPRequestHandler):
             }).encode("utf-8"))
             return
 
+        if parsed.path == "/api/set-active-portfolio":
+            LATEST_ACTIVE_PORTFOLIO = payload.get("portfolio")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True}).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/fetch-live-navs":
+            portfolio = payload.get("portfolio", {})
+            try:
+                synced = sync_portfolio_with_live_navs(portfolio)
+                LATEST_ACTIVE_PORTFOLIO = synced
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": True,
+                    "portfolio": synced,
+                    "synced_count": synced.get("live_synced_funds_count", 0),
+                    "timestamp": synced.get("last_synced_at")
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": False,
+                    "error": str(e)
+                }).encode("utf-8"))
+            return
+
         if parsed.path == "/api/parse-statement":
             raw_text = payload.get("text") or payload.get("raw_text") or ""
             filename = payload.get("filename", "")
             try:
                 from statement_parser import parse_raw_statement
                 parsed_data = parse_raw_statement(raw_text, filename)
+                # Auto sync with live NAVs
+                try:
+                    parsed_data = sync_portfolio_with_live_navs(parsed_data)
+                except Exception:
+                    pass
+
+                LATEST_ACTIVE_PORTFOLIO = parsed_data
+
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -225,6 +314,94 @@ class WealthPulseHandler(http.server.SimpleHTTPRequestHandler):
                 "briefing": briefing,
                 "source": "gemini-3.7-flash" if user_key else "local-synthesis-engine"
             }).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/chat-stream":
+            user_message = payload.get("message", "").strip()
+            portfolio = payload.get("portfolio", {})
+            user_key = payload.get("api_key", "") or load_env_api_key()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+
+            # Stream response chunks
+            system_instruction = """You are WealthPulse Copilot, an elite personal wealth intelligence assistant.
+You help investors understand their mutual fund portfolios, live market moves, SIP discipline, asset allocation, and tax rebalancing in India.
+Provide clear, actionable, numbers-backed advice with high clarity, bullet points, and friendly emojis."""
+
+            context_prompt = f"""Investor Portfolio Context:
+- Investor: {portfolio.get('investor_name', 'Client')}
+- Total Valuation: ₹ {portfolio.get('total_valuation', 0):,.2f}
+- Invested: ₹ {portfolio.get('total_invested', 0):,.2f}
+- MoM Net Gain: +₹ {portfolio.get('mom_gain_abs', 0):,.2f} (+{portfolio.get('mom_gain_pct', 0)}%)
+- Active Monthly SIP: ₹ {portfolio.get('monthly_sip_outflow', 0):,.2f} across {portfolio.get('active_sips_count', 0)} funds
+- XIRR: {portfolio.get('portfolio_xirr', 0)}%
+- Health Score: {portfolio.get('health_score', 94)}/100
+
+Categories:
+{json.dumps(portfolio.get('categories', []), indent=2)}
+
+Funds List:
+{json.dumps([{
+    'name': f.get('name'),
+    'category': f.get('category'),
+    'brokerage': f.get('brokerage'),
+    'value': f.get('current_value'),
+    'mom_gain_pct': f.get('mom_gain_pct'),
+    'xirr': f.get('xirr_pct'),
+    'sip': f.get('sip_amount')
+} for f in portfolio.get('funds', [])], indent=2)}
+
+User Question: {user_message}"""
+
+            streamed = False
+            if user_key:
+                try:
+                    stream_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key={user_key}"
+                    gemini_payload = {
+                        "contents": [{"parts": [{"text": context_prompt}]}],
+                        "systemInstruction": {"parts": [{"text": system_instruction}]},
+                        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048}
+                    }
+                    req = urllib.request.Request(
+                        stream_url,
+                        data=json.dumps(gemini_payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    with urllib.request.urlopen(req, timeout=25) as stream_resp:
+                        for line in stream_resp:
+                            line_str = line.decode("utf-8").strip()
+                            if line_str.startswith("data: "):
+                                json_part = line_str[6:]
+                                try:
+                                    chunk_data = json.loads(json_part)
+                                    text_chunk = chunk_data["candidates"][0]["content"]["parts"][0]["text"]
+                                    event_msg = f"data: {json.dumps({'chunk': text_chunk})}\n\n"
+                                    self.wfile.write(event_msg.encode("utf-8"))
+                                    self.wfile.flush()
+                                    streamed = True
+                                except Exception:
+                                    pass
+                except Exception as e:
+                    print(f"Gemini Streaming error, falling back to local stream: {e}")
+
+            if not streamed:
+                # Local intelligent streaming generator (token/word cadence)
+                full_text = build_local_chat_response(user_message, portfolio)
+                words = full_text.split(" ")
+                for i, word in enumerate(words):
+                    part = word + (" " if i < len(words) - 1 else "")
+                    event_msg = f"data: {json.dumps({'chunk': part})}\n\n"
+                    self.wfile.write(event_msg.encode("utf-8"))
+                    self.wfile.flush()
+                    time.sleep(0.02) # Realistic streaming speed
+
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
             return
 
         if parsed.path == "/api/chat":
@@ -266,7 +443,6 @@ User Question: {user_message}"""
                 ai_response = call_gemini_api(context_prompt, system_instruction, user_key)
 
             if not ai_response:
-                from run_server import build_local_chat_response
                 ai_response = build_local_chat_response(user_message, portfolio)
 
             self.send_response(200)
@@ -353,9 +529,10 @@ def run_server():
     server_address = ("", PORT)
     httpd = ThreadedHTTPServer(server_address, WealthPulseHandler)
     print("=" * 80)
-    print(f"🚀  WEALTHPULSE AI — FINANCIAL AGENT SERVER ONLINE")
+    print(f"🚀  WEALTHPULSE AI — REAL-TIME FINANCIAL AGENT SERVER ONLINE")
     print(f"📡  Dashboard URL: http://localhost:{PORT}")
-    print(f"🔌  API Endpoints: /api/parse-statement, /api/analyze-portfolio, /api/chat")
+    print(f"⚡  Live Stream: http://localhost:{PORT}/api/live-stream (SSE)")
+    print(f"🔌  API Endpoints: /api/fetch-live-navs, /api/chat-stream, /api/parse-statement")
     print("=" * 80)
     
     key = load_env_api_key()

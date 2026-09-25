@@ -55,7 +55,23 @@
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
-<body>
+  <!-- Real-Time Market Ticker Tape -->
+  <div class="market-ticker-bar" id="marketTickerBar">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="live-beacon-dot"></span>
+      <span style="font-weight:700; color:var(--accent-mint); font-size:0.75rem; letter-spacing:0.05em;">MARKET LIVE</span>
+    </div>
+    <div class="ticker-track" id="tickerTrack">
+      <div class="ticker-item"><span class="ticker-name">NIFTY 50</span> <span class="ticker-value" id="tick_NIFTY_50">24,835.40</span> <span class="ticker-change up" id="chg_NIFTY_50">+0.58%</span></div>
+      <div class="ticker-item"><span class="ticker-name">MIDCAP 150</span> <span class="ticker-value" id="tick_NIFTY_MIDCAP">21,450.80</span> <span class="ticker-change up" id="chg_NIFTY_MIDCAP">+1.15%</span></div>
+      <div class="ticker-item"><span class="ticker-name">NIFTY IT</span> <span class="ticker-value" id="tick_NIFTY_IT">42,180.25</span> <span class="ticker-change up" id="chg_NIFTY_IT">+1.40%</span></div>
+      <div class="ticker-item"><span class="ticker-name">SMALLCAP 250</span> <span class="ticker-value" id="tick_NIFTY_SMALLCAP">18,230.15</span> <span class="ticker-change up" id="chg_NIFTY_SMALLCAP">+1.10%</span></div>
+      <div class="ticker-item"><span class="ticker-name">SENSEX</span> <span class="ticker-value" id="tick_SENSEX">81,520.60</span> <span class="ticker-change up" id="chg_SENSEX">+0.57%</span></div>
+      <div class="ticker-item"><span class="ticker-name">GOLD 24K</span> <span class="ticker-value" id="tick_GOLD_24K">₹ 72,450</span> <span class="ticker-change up" id="chg_GOLD_24K">+0.25%</span></div>
+      <div class="ticker-item"><span class="ticker-name">USD/INR</span> <span class="ticker-value" id="tick_USD_INR">₹ 83.94</span> <span class="ticker-change down" id="chg_USD_INR">-0.07%</span></div>
+    </div>
+    <div style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono);" id="tickerLastUpdate">Live Tick Feed</div>
+  </div>
 
   <!-- Top Navbar -->
   <header class="navbar">
@@ -77,8 +93,19 @@
 
     <!-- Actions -->
     <div class="nav-actions">
+      <!-- Live Streaming Toggle -->
+      <button class="live-pulse-beacon" id="btnLiveStreamToggle" title="Toggle Real-Time Market & NAV Stream">
+        <span class="live-beacon-dot"></span>
+        <span id="liveStreamText">LIVE STREAM</span>
+      </button>
+
+      <!-- Sync Live NAVs -->
+      <button class="btn btn-outline" id="btnSyncLiveNavs" style="padding: 6px 12px; font-size: 0.8rem; color: var(--accent-mint); border-color: var(--accent-mint);" title="Sync all funds with live AMFI NAVs">
+        ⚡ Sync Live NAVs
+      </button>
+
       <button class="btn btn-outline" id="btnOpenPasteModal">📋 Ingest Text</button>
-      <button class="btn btn-whatsapp" id="btnOpenWhatsAppModal">📱 WhatsApp Dispatch</button>
+      <button class="btn btn-whatsapp" id="btnOpenWhatsAppModal">📱 WhatsApp</button>
       <button class="btn btn-icon" id="btnExportMarkdown" title="Export Markdown Report">📥</button>
       <button class="btn btn-icon" id="btnPrintPdf" title="Print / PDF View">🖨️</button>
       <button class="btn btn-icon" id="btnOpenKeyModal" title="Gemini API Key Settings">🔑</button>
@@ -88,12 +115,16 @@
   <!-- Main Container -->
   <main class="app-container">
 
+    <!-- Live Real-Time Alert Container -->
+    <div id="liveAlertsContainer"></div>
+
     <!-- Statement Metadata Bar -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
       <div style="font-size:0.875rem; color:var(--text-muted);" id="statementMetaInfo">
         Loading statement data...
       </div>
       <div style="display:flex; gap:8px;">
+        <span class="badge badge-success" id="liveSyncStatusBadge">● AMFI Live Synced</span>
         <span class="badge badge-cyan" id="aiSourceBadge">⚡ Local Synthesis Engine</span>
         <span class="badge badge-purple" id="apiKeyBadge">🔑 Gemini 3.7 Ready</span>
       </div>
@@ -284,8 +315,16 @@
     <div class="tab-content" id="tabMatrix">
       <div class="card-box">
         <div class="card-box-header">
-          <h2 class="card-box-title">📑 Detailed Fund Ledger & MoM Deltas</h2>
-          <span class="badge badge-success">Live Valuation Matrix</span>
+          <div>
+            <h2 class="card-box-title">📑 Detailed Fund Ledger & MoM Deltas</h2>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Real-time AMFI NAV tracking & intraday delta movements</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline" id="btnSyncTableNavs" style="padding:4px 10px; font-size:0.78rem; color:var(--accent-mint); border-color:var(--border-emerald);">
+              ⚡ Fetch Latest AMFI NAVs
+            </button>
+            <span class="badge badge-success">Live Valuation Matrix</span>
+          </div>
         </div>
         <div class="table-responsive">
           <table class="financial-table">

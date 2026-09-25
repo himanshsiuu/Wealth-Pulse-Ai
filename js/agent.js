@@ -1,6 +1,6 @@
 /**
  * WealthPulse AI — Agent & Synthesis Engine
- * Connects to Google Gemini 3.7 Flash API and provides instant offline executive briefing generation.
+ * Connects to Google Gemini 3.7 Flash API (Live Streaming & Batch) and provides instant offline executive briefing generation.
  */
 
 const WealthAgent = {
@@ -27,24 +27,67 @@ const WealthAgent = {
     };
   },
 
-  async sendChatMessage(message, portfolio, apiKey = "", history = []) {
+  async streamChatMessage(message, portfolio, apiKey = "", onChunk = () => {}) {
+    let accumulated = "";
+
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/chat-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, portfolio, api_key: apiKey, history })
+        body: JSON.stringify({ message, portfolio, api_key: apiKey })
       });
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.response) {
-          return json.response;
+
+      if (response.ok && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop(); // keep remainder
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed === "data: [DONE]") {
+              return accumulated;
+            }
+            if (trimmed.startsWith("data: ")) {
+              try {
+                const parsed = JSON.parse(trimmed.slice(6));
+                if (parsed.chunk) {
+                  accumulated += parsed.chunk;
+                  onChunk(accumulated);
+                }
+              } catch (err) {
+                // Ignore parse error on non-json stream lines
+              }
+            }
+          }
         }
+        if (accumulated.trim()) return accumulated;
       }
     } catch (e) {
-      console.warn("Backend chat unavailable, using local chat builder:", e);
+      console.warn("Real-time stream endpoint unavailable, falling back to local chat:", e);
     }
 
-    return this.buildLocalChatResponse(message, portfolio);
+    // Fallback: word-by-word streaming simulation
+    const localFull = this.buildLocalChatResponse(message, portfolio);
+    const words = localFull.split(" ");
+    accumulated = "";
+    for (let i = 0; i < words.length; i++) {
+      accumulated += words[i] + (i < words.length - 1 ? " " : "");
+      onChunk(accumulated);
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return accumulated;
+  },
+
+  async sendChatMessage(message, portfolio, apiKey = "", history = []) {
+    return this.streamChatMessage(message, portfolio, apiKey);
   },
 
   synthesizeLocalBriefing(p) {

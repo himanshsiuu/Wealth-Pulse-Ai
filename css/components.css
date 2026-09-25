@@ -545,3 +545,168 @@ textarea.form-control {
   font-family: var(--font-mono);
   font-size: 0.82rem;
 }
+
+/* ==========================================================================
+   Real-Time Market Ticker & Live Streaming Components
+   ========================================================================== */
+
+.market-ticker-bar {
+  background: rgba(8, 18, 20, 0.95);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: var(--transition);
+}
+
+.ticker-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border-emerald);
+}
+
+.ticker-name {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+
+.ticker-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ticker-change {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.74rem;
+}
+
+.ticker-change.up { color: var(--accent-mint); }
+.ticker-change.down { color: var(--accent-rose); }
+
+/* Live Beacon Indicator */
+.live-pulse-beacon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: var(--accent-mint);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: var(--transition);
+}
+
+.live-pulse-beacon.paused {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--text-muted);
+}
+
+.live-beacon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-mint);
+  box-shadow: 0 0 8px var(--accent-mint);
+  animation: pulse-beacon 1.5s infinite;
+}
+
+.live-pulse-beacon.paused .live-beacon-dot {
+  background-color: var(--text-dim);
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes pulse-beacon {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Flash Tick Animations */
+.flash-tick-up {
+  animation: flashGreen 1.2s ease-out;
+}
+
+.flash-tick-down {
+  animation: flashRed 1.2s ease-out;
+}
+
+@keyframes flashGreen {
+  0% { background-color: rgba(16, 185, 129, 0.35); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashRed {
+  0% { background-color: rgba(244, 63, 94, 0.35); }
+  100% { background-color: transparent; }
+}
+
+/* Chat Streaming Cursor */
+.chat-streaming-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: var(--accent-mint);
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: blinkCursor 0.8s infinite;
+}
+
+@keyframes blinkCursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Real-Time Live Alert Banner */
+.live-alerts-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08));
+  border: 1px solid var(--border-emerald);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.live-alerts-banner.warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(244, 63, 94, 0.08));
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
